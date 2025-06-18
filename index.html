@@ -2,101 +2,107 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Graficar Desigualdades</title>
+  <title>Graficar Desigualdades con Dos Variables</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    input, button {
-      padding: 8px;
-      margin-top: 10px;
-      font-size: 16px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input, button { padding: 8px; margin-top: 10px; font-size: 16px; width: 100%; }
+    .input-group { margin-bottom: 10px; }
   </style>
 </head>
 <body>
-  <h2>Graficar desigualdad con dos variables</h2>
-  <p>Ejemplo: <code>y <= 2*x + 3</code></p>
-  <input type="text" id="inequalityInput" placeholder="Ingresa desigualdad (y <= 2*x + 3)">
-  <br>
+  <h2>Graficar desigualdades con dos variables</h2>
+  <p>Ejemplo: <code>y &lt;= 2*x + 3</code></p>
+
+  <div class="input-group">
+    <input type="text" id="ineq1" placeholder="Desigualdad 1 (ej: y <= 7 - 2*x)">
+  </div>
+  <div class="input-group">
+    <input type="text" id="ineq2" placeholder="Desigualdad 2 (ej: y > x + 1)">
+  </div>
   <button onclick="graficar()">Graficar</button>
   <div id="grafica" style="width:100%; height:500px;"></div>
 
   <script>
     function graficar() {
-      const entrada = document.getElementById("inequalityInput").value.trim();
+      const ineqs = [document.getElementById("ineq1").value.trim(), document.getElementById("ineq2").value.trim()];
+      const colores = ["rgba(0,0,255,0.2)", "rgba(255,0,0,0.2)"];
+      const lineas = ["blue", "red"];
+      const datos = [];
 
-      const match = entrada.match(/^y\s*([<>]=?)\s*([\-+*/x0-9.\s]+)$/i);
-      if (!match) {
-        alert("Formato inválido. Usa algo como: y <= 2*x + 3");
-        return;
-      }
+      let x = [], y = [];
+      for (let i = -10; i <= 10; i += 0.2) x.push(i);
+      for (let j = -10; j <= 10; j += 0.2) y.push(j);
 
-      const operador = match[1];
-      const expresion = match[2];
+      for (let k = 0; k < ineqs.length; k++) {
+        const entrada = ineqs[k];
+        if (!entrada) continue;
 
-      const f = x => {
-        try {
-          return eval(expresion.replace(/x/g, `(${x})`));
-        } catch (e) {
-          alert("Error en la expresión.");
-          return 0;
+        const match = entrada.match(/^y\s*([<>]=?)\s*([\-+*/x0-9.\s]+)$/i);
+        if (!match) {
+          alert(`Desigualdad ${k+1} no es válida. Usa formato tipo: y <= 2*x + 3`);
+          return;
         }
-      };
 
-      const x = [];
-      const y = [];
-      const yRelleno = [];
+        const operador = match[1];
+        const expresion = match[2];
 
-      for (let i = -10; i <= 10; i += 0.2) {
-        x.push(i);
-        const yi = f(i);
-        y.push(yi);
-        const relleno = [];
-
-        for (let j = -10; j <= 10; j += 0.5) {
-          if (
-            (operador === "<=" && j <= f(i)) ||
-            (operador === ">=" && j >= f(i)) ||
-            (operador === "<" && j < f(i)) ||
-            (operador === ">" && j > f(i))
-          ) {
-            relleno.push(j);
-          } else {
-            relleno.push(NaN);
+        const f = x => {
+          try {
+            return eval(expresion.replace(/x/g, `(${x})`));
+          } catch (e) {
+            alert("Error en la expresión: " + expresion);
+            return 0;
           }
+        };
+
+        const yLinea = x.map(f);
+
+        // Región
+        const z = [];
+        for (let j = 0; j < y.length; j++) {
+          const row = [];
+          for (let i = 0; i < x.length; i++) {
+            const fy = f(x[i]);
+            const yj = y[j];
+            const cumple = (operador === "<=" && yj <= fy) ||
+                           (operador === ">=" && yj >= fy) ||
+                           (operador === "<"  && yj < fy)  ||
+                           (operador === ">"  && yj > fy);
+            row.push(cumple ? 1 : NaN);
+          }
+          z.push(row);
         }
-        yRelleno.push(relleno);
+
+        datos.push({
+          x: x,
+          y: y,
+          z: z,
+          type: "heatmap",
+          colorscale: [[0, colores[k]], [1, colores[k]]],
+          showscale: false,
+          hoverinfo: "skip",
+          opacity: 0.5
+        });
+
+        // Línea frontera
+        datos.push({
+          x: x,
+          y: yLinea,
+          mode: "lines",
+          name: entrada,
+          line: { color: lineas[k], width: 2 }
+        });
       }
-
-      const rellenoData = {
-        x: x,
-        y: Array.from({ length: yRelleno.length * yRelleno[0].length }, (_, i) =>
-          -10 + 0.5 * (i % yRelleno[0].length)),
-        z: yRelleno.flat(),
-        type: "heatmap",
-        showscale: false,
-        colorscale: [[0, 'rgba(0,0,255,0.2)'], [1, 'rgba(0,0,255,0.2)']],
-      };
-
-      const frontera = {
-        x: x,
-        y: y,
-        mode: "lines",
-        name: entrada,
-        line: { color: "red", width: 2 }
-      };
 
       const layout = {
-        title: "Región de solución",
+        title: "Región de solución de dos desigualdades",
         xaxis: { range: [-10, 10], zeroline: true },
         yaxis: { range: [-10, 10], zeroline: true },
         showlegend: true
       };
 
-      Plotly.newPlot("grafica", [rellenoData, frontera], layout);
+      Plotly.newPlot("grafica", datos, layout);
     }
   </script>
 </body>
