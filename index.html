@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Graficar Desigualdades</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    input, button {
+      padding: 8px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Graficar desigualdad con dos variables</h2>
+  <p>Ejemplo: <code>y <= 2*x + 3</code></p>
+  <input type="text" id="inequalityInput" placeholder="Ingresa desigualdad (y <= 2*x + 3)">
+  <br>
+  <button onclick="graficar()">Graficar</button>
+  <div id="grafica" style="width:100%; height:500px;"></div>
+
+  <script>
+    function graficar() {
+      const entrada = document.getElementById("inequalityInput").value.trim();
+
+      const match = entrada.match(/^y\s*([<>]=?)\s*([\-+*/x0-9.\s]+)$/i);
+      if (!match) {
+        alert("Formato inválido. Usa algo como: y <= 2*x + 3");
+        return;
+      }
+
+      const operador = match[1];
+      const expresion = match[2];
+
+      const f = x => {
+        try {
+          return eval(expresion.replace(/x/g, `(${x})`));
+        } catch (e) {
+          alert("Error en la expresión.");
+          return 0;
+        }
+      };
+
+      const x = [];
+      const y = [];
+      const yRelleno = [];
+
+      for (let i = -10; i <= 10; i += 0.2) {
+        x.push(i);
+        const yi = f(i);
+        y.push(yi);
+        const relleno = [];
+
+        for (let j = -10; j <= 10; j += 0.5) {
+          if (
+            (operador === "<=" && j <= f(i)) ||
+            (operador === ">=" && j >= f(i)) ||
+            (operador === "<" && j < f(i)) ||
+            (operador === ">" && j > f(i))
+          ) {
+            relleno.push(j);
+          } else {
+            relleno.push(NaN);
+          }
+        }
+        yRelleno.push(relleno);
+      }
+
+      const rellenoData = {
+        x: x,
+        y: Array.from({ length: yRelleno.length * yRelleno[0].length }, (_, i) =>
+          -10 + 0.5 * (i % yRelleno[0].length)),
+        z: yRelleno.flat(),
+        type: "heatmap",
+        showscale: false,
+        colorscale: [[0, 'rgba(0,0,255,0.2)'], [1, 'rgba(0,0,255,0.2)']],
+      };
+
+      const frontera = {
+        x: x,
+        y: y,
+        mode: "lines",
+        name: entrada,
+        line: { color: "red", width: 2 }
+      };
+
+      const layout = {
+        title: "Región de solución",
+        xaxis: { range: [-10, 10], zeroline: true },
+        yaxis: { range: [-10, 10], zeroline: true },
+        showlegend: true
+      };
+
+      Plotly.newPlot("grafica", [rellenoData, frontera], layout);
+    }
+  </script>
+</body>
+</html>
